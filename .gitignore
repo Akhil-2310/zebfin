@@ -1,0 +1,10 @@
+target/
+.dev/
+node_modules/
+.env*
+*.pczt
+.DS_Store
+data/
+# Private planning notes and demo script (kept locally)
+docs/
+.claude/
