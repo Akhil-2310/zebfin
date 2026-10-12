@@ -47,7 +47,7 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 sm:pt-20 md:grid-cols-[1.25fr_1fr]">
           <div>
-            <span className="chip chip-sun">Private finance on Zcash · testnet</span>
+            <span className="chip chip-sun">Private finance on Zcash</span>
             <h1 className="mt-5 text-4xl leading-[1.1] sm:text-6xl">
               Run your team&apos;s money <span className="text-accent-ink">without publishing it.</span>
             </h1>
