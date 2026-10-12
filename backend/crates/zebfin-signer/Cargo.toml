@@ -1,0 +1,21 @@
+[package]
+name = "zebfin-signer"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Approver-side key handling and PCZT signing. Kept free of networking and storage so it can compile to Wasm."
+
+[dependencies]
+anyhow.workspace = true
+bip0039.workspace = true
+hex.workspace = true
+orchard.workspace = true
+pczt.workspace = true
+rand.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+zcash_address.workspace = true
+zcash_keys.workspace = true
+zcash_protocol.workspace = true
+zip32.workspace = true
