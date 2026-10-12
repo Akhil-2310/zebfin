@@ -22,6 +22,8 @@ import { validateAddress } from "@/lib/signer";
 /** Same salted hash the server uses, so we can match its payee list locally. */
 const payeeHash = (address: string) => toB64(sha256(new TextEncoder().encode(`zebfin/payee/v1|${address.trim()}`)));
 
+const when = (d: Date) => d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
 export function Payments({
   session,
   accountId,
@@ -94,6 +96,13 @@ export function Payments({
     const at = added(address);
     return at && policy ? new Date(Date.parse(at) + policy.policy.new_payee_hold_hours * 3600_000) : null;
   };
+  // The new-payee safety check, for the payee picked right now.
+  const picked = payees.find((p) => p.id === payee);
+  const pickedUntil = picked ? holdUntil(picked.value.address) : null;
+  const pickedNew = !!pickedUntil && pickedUntil > new Date();
+  const holdAbove = policy?.policy.new_payee_hold_above_usd ?? 0;
+  const usd = currency === "USD" ? Number(amount) : rate ? Number(amount) * rate : null;
+  const willHold = pickedNew && usd !== null && usd > holdAbove;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -173,7 +182,7 @@ export function Payments({
               return (
                 <option key={p.id} value={p.id}>
                   {p.value.label}
-                  {held ? ` (new: large payments held until ${until!.toLocaleString()})` : ""}
+                  {held ? " · 🛡️ new payee" : ""}
                 </option>
               );
             })}
@@ -195,6 +204,21 @@ export function Payments({
             <option>TAZ</option>
           </select>
         </div>
+        {mode === "pay" && pickedNew && (
+          <div className="well p-3 text-sm" style={{ background: "var(--sun)", color: "#2a2036" }}>
+            <p>
+              <b>🛡️ New payee safety check.</b> {picked!.value.label} was added less than {policy!.policy.new_payee_hold_hours}{" "}
+              hours ago, so payments over ${holdAbove.toLocaleString()} to them wait until {when(pickedUntil!)}. Smaller payments go out
+              normally.
+            </p>
+            <p className="mt-1 text-xs">
+              {willHold
+                ? `This payment is over $${holdAbove.toLocaleString()}, so it will be held until then.`
+                : "This payment is under the limit, so it isn\u2019t held."}{" "}
+              It protects you if a payee&apos;s address was mistyped or swapped. Admins can change it in Spending policy.
+            </p>
+          </div>
+        )}
         <input
           className="input"
           value={reason}
@@ -290,7 +314,8 @@ function PayeeBook({
     <details className="mt-5">
       <summary className="cursor-pointer text-sm font-semibold">Payee book ({payees.length})</summary>
       <p className="mt-1 text-xs text-muted">
-        Labels are encrypted; the server keeps only a salted hash of each address so it can enforce the new-payee hold.
+        Labels are encrypted; the server keeps only a salted hash of each address. New payees pass a safety check: large
+        payments to them wait for a while after they&apos;re added, in case an address was mistyped or swapped.
       </p>
       <ul className="mt-2 divide-y divide-border text-sm">
         {payees.map((p) => {
@@ -304,7 +329,11 @@ function PayeeBook({
               </div>
               <div className="flex items-center gap-3 text-xs">
                 <span className={until && until > new Date() ? "text-accent-ink" : "text-muted"}>
-                  {!inBook ? "not registered" : until && until > new Date() ? `held until ${until.toLocaleString()}` : "established"}
+                  {!inBook
+                    ? "not registered"
+                    : until && until > new Date()
+                      ? `🛡️ new · large payments wait until ${when(until)}`
+                      : "✓ trusted"}
                 </span>
                 <button
                   className="text-muted hover:text-danger"
