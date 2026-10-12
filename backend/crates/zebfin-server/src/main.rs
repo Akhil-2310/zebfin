@@ -151,6 +151,27 @@ async fn migrate(db: &deadpool_postgres::Pool) -> anyhow::Result<()> {
 
 /// Keeps every account synced so incoming payments and confirmations show up
 /// without a client asking.
+/// Connects to the database over IPv4 when it has an IPv4 address. Some hosts
+/// (Railway) have no outbound IPv6, and managed Postgres (Neon) publishes both.
+/// The hostname stays set, so TLS still verifies it.
+async fn prefer_ipv4(config: &mut tokio_postgres::Config) {
+    use tokio_postgres::config::Host;
+    if !config.get_hostaddrs().is_empty() {
+        return;
+    }
+    let [Host::Tcp(host)] = config.get_hosts() else { return };
+    let port = config.get_ports().first().copied().unwrap_or(5432);
+    let host = host.clone();
+    match tokio::net::lookup_host((host.as_str(), port)).await {
+        Ok(addrs) => {
+            if let Some(v4) = addrs.into_iter().find(|a| a.is_ipv4()) {
+                config.hostaddr(v4.ip());
+            }
+        }
+        Err(e) => tracing::warn!("couldn't resolve database host {host}: {e}"),
+    }
+}
+
 async fn sync_loop(state: AppState, every: Duration) {
     let mut tick = tokio::time::interval(every);
     loop {
@@ -200,7 +221,8 @@ async fn main() -> anyhow::Result<()> {
     let rp_id = env_or("ZEBFIN_RP_ID", "localhost");
     let sync_secs: u64 = env_or("ZEBFIN_SYNC_SECS", "30").parse()?;
 
-    let pg_config: tokio_postgres::Config = database_url.parse().context("invalid DATABASE_URL")?;
+    let mut pg_config: tokio_postgres::Config = database_url.parse().context("invalid DATABASE_URL")?;
+    prefer_ipv4(&mut pg_config).await;
     // TLS when the server offers it (managed Postgres such as Neon requires
     // it); a local Postgres without TLS still works under sslmode=prefer.
     let _ = rustls::crypto::ring::default_provider().install_default();
