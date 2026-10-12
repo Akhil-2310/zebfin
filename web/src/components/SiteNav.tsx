@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { NavActions } from "@/components/NavActions";
 
 const LINKS = [
   ["/#privacy", "Privacy"],
@@ -23,14 +24,7 @@ export function SiteNav() {
             </a>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
-          <Link href="/login" className="btn-ghost px-3 py-1.5 text-sm">
-            Sign in
-          </Link>
-          <Link href="/signup" className="btn hidden px-4 py-1.5 text-sm sm:inline-flex">
-            Get started
-          </Link>
-        </div>
+        <NavActions />
       </div>
     </header>
   );
