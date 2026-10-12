@@ -1,0 +1,31 @@
+[package]
+name = "zebfin-wallet"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Backend view-only wallet: sync, addresses, PCZT creation, proving and broadcast. Never holds a spending key."
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+rustls.workspace = true
+hex.workspace = true
+orchard.workspace = true
+pczt.workspace = true
+rand.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+zcash_address.workspace = true
+zcash_client_backend.workspace = true
+zcash_client_sqlite.workspace = true
+zcash_keys.workspace = true
+zcash_primitives.workspace = true
+zcash_proofs.workspace = true
+zcash_protocol.workspace = true
+zebfin-signer.workspace = true
+zip32.workspace = true
+zip321.workspace = true
