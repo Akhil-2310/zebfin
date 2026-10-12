@@ -14,7 +14,7 @@ import type { WorkspaceMode } from "@/lib/workspace";
 const NAV: { href: string; label: string; icon: string; team?: boolean }[] = [
   { href: "/app", label: "Home", icon: "🏠" },
   { href: "/app/treasury", label: "Treasury", icon: "🏦" },
-  { href: "/app/payroll", label: "Payroll", icon: "💸", team: true },
+  { href: "/app/payroll", label: "Payroll", icon: "💸" },
   { href: "/app/payments", label: "Payments", icon: "🧾" },
   { href: "/app/books", label: "Books", icon: "📒" },
   { href: "/app/kudos", label: "Kudos", icon: "💖", team: true },
@@ -22,7 +22,7 @@ const NAV: { href: string; label: string; icon: string; team?: boolean }[] = [
   { href: "/app/team", label: "Team & policy", icon: "👥" },
 ];
 
-/** Sections for this kind of workspace; personal ones hide team-only pages. */
+/** Sections for this kind of workspace; personal ones hide team-only pages (kudos). */
 export function navFor(mode: WorkspaceMode) {
   return mode === "team"
     ? NAV

@@ -59,7 +59,7 @@ export async function loadDemoData(
   const existing = new Set(ofType(records, "contributor").map((c) => c.value.name));
   let added = 0;
   const teamIds = ofType(records, "contributor").map((c) => c.id);
-  for (const [i, [name, role, usd]] of (team ? TEAM : []).entries()) {
+  for (const [i, [name, role, usd]] of TEAM.entries()) {
     const address = teamAddresses[i] ?? "";
     if (existing.has(name)) continue;
     progress(`Adding ${name}…`);
@@ -72,7 +72,7 @@ export async function loadDemoData(
   if (added) done.push(`${added} contributors${DEMO_ADDRESSES.length ? "" : " (waiting for payout addresses)"}`);
 
   // A regular pay day. Today's date, so the demo opens on "Pay day!".
-  if (team && !ofType(records, "payroll-schedule").length && DEMO_ADDRESSES.length) {
+  if (!ofType(records, "payroll-schedule").length && DEMO_ADDRESSES.length) {
     await saveRecord(session, { type: "payroll-schedule", dayOfMonth: Math.min(28, new Date().getDate()), contributorIds: teamIds });
     done.push("a monthly pay day (today)");
   }

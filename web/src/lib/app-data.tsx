@@ -125,7 +125,7 @@ export function AppDataProvider({ session, children }: { session: Session; child
   }, [accounts, session.token, version]);
 
   const mode = workspaceMode(records);
-  const schedule = mode === "team" ? ofType(records, "payroll-schedule")[0]?.value : undefined;
+  const schedule = ofType(records, "payroll-schedule")[0]?.value;
   const payday =
     !!vitals && !!schedule && payDay(schedule, paidPeriods(ofType(records, "run").map((r) => r.value), vitals.deadPaymentIds), vitals.now).due;
   const mood: Mood = vitals

@@ -60,15 +60,16 @@ export function GettingStarted({
   const personalSteps: typeof teamSteps = [
     teamSteps[0],
     teamSteps[1],
+    teamSteps[3], // add a contributor
+    teamSteps[4], // run payroll
     { label: "Send an invoice", done: ofType(records, "invoice").length > 0, href: "/app/payments", hint: "Payments → Invoices" },
-    { label: "Pay someone", done: ofType(records, "request-note").length > 0, href: "/app/payments", hint: "Payments → Pay someone" },
     teamSteps[5], // check the books
     teamSteps[7], // run a sealed-bid auction
   ];
   const steps = personal ? personalSteps : teamSteps;
   const done = steps.filter((s) => s.done).length;
   // Offer demo data until each demo piece exists (some need a treasury account first).
-  const demoMissing = (personal ? (["invoice", "auction"] as const) : (["contributor", "invoice", "kudos-settings", "auction"] as const)).some((t) => !ofType(records, t).length);
+  const demoMissing = (personal ? (["contributor", "invoice", "auction"] as const) : (["contributor", "invoice", "kudos-settings", "auction"] as const)).some((t) => !ofType(records, t).length);
   if (hidden || done === steps.length) return null;
 
   return (

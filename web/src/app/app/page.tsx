@@ -8,12 +8,10 @@ import { formatTaz, ofType } from "@/lib/records";
 import { ordinal } from "@/lib/schedule";
 
 export default function Home() {
-  const { session, records, accounts, reload, vitals, payday, mode } = useAppData();
+  const { session, records, accounts, reload, vitals, payday } = useAppData();
   const schedule = ofType(records, "payroll-schedule")[0]?.value;
   const contributors = ofType(records, "contributor");
-  const invoices = ofType(records, "invoice");
-  const auctions = ofType(records, "auction");
-  const teamTiles = [
+  const tiles = [
     {
       href: "/app/treasury",
       icon: "🏦",
@@ -43,24 +41,6 @@ export default function Home() {
       note: "Paid privately",
     },
   ];
-  const personalTiles = [
-    {
-      href: "/app/payments",
-      icon: "🧾",
-      label: "Invoices",
-      value: `${invoices.length} sent`,
-      note: "Paid privately by QR or link",
-    },
-    {
-      href: "/app/auctions",
-      icon: "🔨",
-      label: "Auctions",
-      value: `${auctions.length} ${auctions.length === 1 ? "auction" : "auctions"}`,
-      note: "Sealed bids, open to anyone",
-    },
-  ];
-  const tiles = [...teamTiles.slice(0, 2), ...(mode === "team" ? teamTiles.slice(2) : personalTiles)];
-
   return (
     <div className="space-y-6">
       <PetHero />

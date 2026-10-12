@@ -103,14 +103,14 @@ export default function SignupPage() {
               checked={kind === "personal"}
               onChange={() => setKind("personal")}
               title="🧑 Personal"
-              blurb="Just you: hold TAZ privately, invoice, pay people and run sealed-bid auctions."
+              blurb="Just you: pay the people who work for you, invoice, hold TAZ privately and run sealed-bid auctions."
             />
             <Choice
               name="kind"
               checked={kind === "team"}
               onChange={() => setKind("team")}
               title="🏢 Company or team"
-              blurb="Everything in personal, plus payroll, kudos and teammates."
+              blurb="Everything in personal, plus teammates with shared approvals, and kudos."
             />
           </div>
         </fieldset>

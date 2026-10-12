@@ -35,8 +35,8 @@ export default function TeamPage() {
 }
 
 const MODES: Record<WorkspaceMode, { title: string; blurb: string }> = {
-  personal: { title: "🧑 Personal", blurb: "Treasury, payments, invoices, books and auctions." },
-  team: { title: "🏢 Team", blurb: "Adds payroll, contributors, kudos and teammates." },
+  personal: { title: "🧑 Personal", blurb: "Treasury, payroll, payments, invoices, books and auctions." },
+  team: { title: "🏢 Team", blurb: "Adds teammates with shared approvals, and kudos." },
 };
 
 function WorkspaceCard() {
