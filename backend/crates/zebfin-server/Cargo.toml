@@ -1,0 +1,32 @@
+[package]
+name = "zebfin-server"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Zebfin API: ciphertext-only record store plus the view-only wallet service."
+
+[dependencies]
+anyhow.workspace = true
+axum = "0.8"
+base64 = "0.22"
+hex.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+deadpool-postgres = "0.14"
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+thiserror.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid = { workspace = true, features = ["v4", "serde"] }
+url = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots-no-provider"] }
+webauthn-rs = { version = "0.5", features = ["conditional-ui"] }
+zebfin-signer.workspace = true
+zebfin-wallet.workspace = true
