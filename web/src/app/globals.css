@@ -1,0 +1,316 @@
+@layer theme, base, zeb, components, utilities;
+@import "tailwindcss";
+
+/*
+ * Zebfin "pocket pet" design system: a handheld-toy look. Chunky ink outlines,
+ * candy buttons that press down, LCD screen panels. Headings and controls use a
+ * rounded display face; pixel type is only an accent (logo, Zeb's screens).
+ * Body copy stays in a rounded readable face; numbers and addresses in mono.
+ */
+
+:root {
+  --background: #fdf1e4;
+  --dots: #f3dcc6;
+  --surface: #fffaf3;
+  --screen: #e2ebcb;
+  --screen-ink: #2c3a22;
+  --ink: #3a2c48;
+  --border: #3a2c48;
+  --foreground: #2a2036;
+  --muted: #776884;
+  --accent: #ff6fa8;
+  --accent-strong: #e2427f;
+  --accent-soft: #ffd5e6;
+  --accent-ink: #b8235e;
+  --sun: #ffd45e;
+  --mint: #7fdcbf;
+  --sky: #8fcbff;
+  --ok: #24804f;
+  --danger: #cc3550;
+  --chart-1: #b7791f;
+  --chart-grid: #ece3d3;
+  --shadow: 0 5px 0 var(--ink);
+  --shadow-sm: 0 3px 0 var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Night mode: a backlit LCD. */
+    --background: #1b1625;
+    --dots: #2a2238;
+    --surface: #261f33;
+    --screen: #17251b;
+    --screen-ink: #b9f5a6;
+    --ink: #0d0a12;
+    --border: #4b3d5e;
+    --foreground: #f4ecff;
+    --muted: #b3a5c2;
+    --accent: #ff8cc0;
+    --accent-strong: #ffb0d4;
+    --accent-soft: #4a2a3d;
+    --accent-ink: #ff9ccb;
+    --sun: #ffd770;
+    --mint: #7fe4c4;
+    --sky: #93cfff;
+    --ok: #6fdc9b;
+    --danger: #ff7d8f;
+    --chart-1: #bd8420;
+    --chart-grid: #332a42;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-screen: var(--screen);
+  --color-screen-ink: var(--screen-ink);
+  --color-ink: var(--ink);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-sun: var(--sun);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --color-chart-1: var(--chart-1);
+  --color-chart-grid: var(--chart-grid);
+  --font-sans: var(--font-body);
+  --font-pixel: var(--font-pixel);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--background);
+  background-image: radial-gradient(var(--dots) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  color: var(--foreground);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@layer zeb {
+  /* Panels: chunky outlined cards that sit on a hard shadow. */
+  .card {
+    @apply rounded-2xl p-5;
+    background: var(--surface);
+    border: 3px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+
+  /* LCD screen: an inset display, used for the pet and key numbers. */
+  .screen {
+    @apply rounded-xl p-4;
+    background: var(--screen);
+    color: var(--screen-ink);
+    border: 3px solid var(--border);
+    box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.08);
+    font-family: var(--font-pixel), ui-monospace, monospace;
+  }
+
+  /* Candy buttons that press down. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-[transform,box-shadow] duration-75 disabled:cursor-not-allowed disabled:opacity-50;
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+    font-weight: 600;
+    background: var(--accent);
+    color: #2a2036;
+    border: 3px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--accent-strong);
+  }
+  .btn:active:not(:disabled),
+  .btn-ghost:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-[transform,box-shadow] duration-75 disabled:opacity-50;
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+    font-weight: 500;
+    background: var(--surface);
+    color: var(--foreground);
+    border: 3px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--accent-soft);
+  }
+
+  .input {
+    @apply w-full rounded-xl px-3 py-2 text-sm outline-none;
+    background: var(--surface);
+    color: var(--foreground);
+    border: 3px solid var(--border);
+    box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.06);
+  }
+  .input:focus {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .label {
+    @apply mb-1 block text-xs uppercase tracking-wide text-muted;
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+  }
+
+  .mono {
+    @apply font-mono text-xs break-all;
+  }
+
+  .pixel {
+    font-family: var(--font-pixel), ui-monospace, monospace;
+  }
+  .display {
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* Little rounded tags. */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs;
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* Speech bubble for the pet. */
+  .bubble {
+    @apply relative rounded-2xl px-4 py-3 text-sm;
+    background: var(--surface);
+    border: 3px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .bubble::after {
+    content: "";
+    position: absolute;
+    left: 22px;
+    bottom: -11px;
+    width: 16px;
+    height: 16px;
+    background: var(--surface);
+    border-right: 3px solid var(--border);
+    border-bottom: 3px solid var(--border);
+    transform: rotate(45deg);
+  }
+
+  /* Segmented "HP" bar. */
+  .meter {
+    @apply h-3 w-full overflow-hidden rounded-full;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+  .meter > span {
+    display: block;
+    height: 100%;
+    background: repeating-linear-gradient(90deg, currentColor 0 8px, transparent 8px 10px);
+  }
+
+  /* Pet animations. Respect reduced motion. */
+  @keyframes pet-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  @keyframes pet-wiggle {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    25% {
+      transform: rotate(-6deg);
+    }
+    75% {
+      transform: rotate(6deg);
+    }
+  }
+  @keyframes pet-hop {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-14px);
+    }
+  }
+  .pet-bob {
+    animation: pet-bob 1.6s steps(4) infinite;
+  }
+  .pet-wiggle {
+    animation: pet-wiggle 0.9s steps(4) infinite;
+  }
+  .pet-hop {
+    animation: pet-hop 0.7s steps(5) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pet-bob,
+    .pet-wiggle,
+    .pet-hop {
+      animation: none;
+    }
+  }
+
+  /* Tables inside panels: dashed rows. */
+  .card table tbody > tr + tr {
+    border-top: 2px dashed color-mix(in srgb, var(--border) 25%, transparent);
+  }
+
+  /* Inset wells for secondary content inside cards. */
+  .well {
+    @apply rounded-xl;
+    background: var(--background);
+    border: 2px dashed color-mix(in srgb, var(--border) 35%, transparent);
+  }
+
+  /* Segmented toggles: a row of little device keys. */
+  .seg {
+    @apply flex gap-1 rounded-full p-1 text-sm;
+    background: var(--background);
+    border: 2px solid var(--border);
+  }
+  .seg > button {
+    @apply rounded-full px-3 py-1 text-muted;
+    font-family: var(--font-display), ui-rounded, system-ui, sans-serif;
+  }
+  .seg > button:hover:not(:disabled) {
+    color: var(--foreground);
+  }
+  .seg > button.seg-on {
+    background: var(--sun);
+    color: #2a2036;
+    box-shadow: inset 0 0 0 2px var(--border);
+  }
+
+  .chip-sun {
+    background: var(--sun);
+    color: #2a2036;
+  }
+
+  /* Bubble whose tail points left, at a pet beside it. */
+  .bubble-left::after {
+    left: -11px;
+    top: 18px;
+    bottom: auto;
+    border-right: none;
+    border-bottom: 3px solid var(--border);
+    border-left: 3px solid var(--border);
+    transform: rotate(45deg);
+  }
+}
