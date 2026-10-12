@@ -191,7 +191,11 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be set")?;
     let data_dir = PathBuf::from(env_or("ZEBFIN_DATA_DIR", "./data"));
     let lightwalletd = env_or("ZEBFIN_LIGHTWALLETD", zebfin_wallet::DEFAULT_SERVER);
-    let bind = env_or("ZEBFIN_BIND", "127.0.0.1:8080");
+    // Hosts like Railway assign a port through PORT; ZEBFIN_BIND overrides it.
+    let bind = std::env::var("ZEBFIN_BIND").unwrap_or_else(|_| match std::env::var("PORT") {
+        Ok(port) => format!("0.0.0.0:{port}"),
+        Err(_) => "127.0.0.1:8080".into(),
+    });
     let cors_origin = env_or("ZEBFIN_CORS_ORIGIN", "http://localhost:3000");
     let rp_id = env_or("ZEBFIN_RP_ID", "localhost");
     let sync_secs: u64 = env_or("ZEBFIN_SYNC_SECS", "30").parse()?;
