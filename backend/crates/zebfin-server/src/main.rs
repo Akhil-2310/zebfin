@@ -197,21 +197,27 @@ async fn main() -> anyhow::Result<()> {
     let sync_secs: u64 = env_or("ZEBFIN_SYNC_SECS", "30").parse()?;
 
     let pg_config: tokio_postgres::Config = database_url.parse().context("invalid DATABASE_URL")?;
-    let manager = deadpool_postgres::Manager::new(pg_config, tokio_postgres::NoTls);
+    // TLS when the server offers it (managed Postgres such as Neon requires
+    // it); a local Postgres without TLS still works under sslmode=prefer.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let roots = rustls::RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
+    let tls = tokio_postgres_rustls::MakeRustlsConnect::new(
+        rustls::ClientConfig::builder().with_root_certificates(roots).with_no_client_auth(),
+    );
+    let manager = deadpool_postgres::Manager::new(pg_config, tls);
     let db = deadpool_postgres::Pool::builder(manager).max_size(10).build()?;
     migrate(&db).await?;
 
     let client = zebfin_wallet::connect(&lightwalletd).await?;
+    let wallets = WalletService::new(data_dir, client);
+    let faucet = routes::faucet::Faucet::from_env(&db, &wallets).await?;
     let state = AppState {
         db,
-        wallets: WalletService::new(data_dir, client),
+        wallets,
         passkeys: passkeys::Passkeys::new(&rp_id, &cors_origin)?,
         rates: rates::Rates::default(),
-        faucet: routes::faucet::Faucet::from_env()?,
+        faucet,
     };
-    if state.faucet.is_some() {
-        tracing::info!("testnet faucet enabled");
-    }
     tokio::spawn(rates::refresh_loop(state.rates.clone()));
 
     tokio::spawn(routes::payments::broadcast_loop(state.clone()));

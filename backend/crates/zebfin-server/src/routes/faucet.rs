@@ -24,6 +24,7 @@ use zebfin_wallet::{Recipient, combine, parse_pczt, prove, serialize_pczt};
 use super::accounts::owned_account;
 use crate::{
     AppState,
+    wallets::WalletService,
     auth::OrgAuth,
     error::{ApiError, ApiResult},
 };
@@ -43,17 +44,31 @@ pub struct Faucet {
 }
 
 impl Faucet {
-    pub fn from_env() -> anyhow::Result<Option<Arc<Self>>> {
-        let (Ok(key), Ok(account)) = (std::env::var("ZEBFIN_FAUCET_KEY"), std::env::var("ZEBFIN_FAUCET_ACCOUNT")) else {
-            return Ok(None);
+    /// Configured by ZEBFIN_FAUCET_KEY_JSON (the key file's contents, handy as a
+    /// hosting secret) or ZEBFIN_FAUCET_KEY (a path). ZEBFIN_FAUCET_ACCOUNT
+    /// names an already-imported account; without it the faucet sets up its
+    /// own account on first start, under an ID derived from the key.
+    pub async fn from_env(db: &deadpool_postgres::Pool, wallets: &WalletService) -> anyhow::Result<Option<Arc<Self>>> {
+        let json = match (std::env::var("ZEBFIN_FAUCET_KEY_JSON"), std::env::var("ZEBFIN_FAUCET_KEY")) {
+            (Ok(json), _) => json,
+            (_, Ok(path)) => std::fs::read_to_string(&path).context("reading ZEBFIN_FAUCET_KEY")?,
+            _ => return Ok(None),
         };
-        let file: SignerKeyFile = serde_json::from_str(&std::fs::read_to_string(&key).context("reading ZEBFIN_FAUCET_KEY")?)
-            .context("parsing ZEBFIN_FAUCET_KEY")?;
+        let file: SignerKeyFile = serde_json::from_str(&json).context("parsing the faucet key")?;
+        // Refuses anything but a testnet key file.
+        let signer = DeviceSigner::from_key_file(&file)?;
+        let account = match std::env::var("ZEBFIN_FAUCET_ACCOUNT") {
+            Ok(id) => id.parse().context("ZEBFIN_FAUCET_ACCOUNT must be an account id")?,
+            Err(_) => provision(db, wallets, &signer).await?,
+        };
         let taz: f64 = std::env::var("ZEBFIN_FAUCET_TAZ").ok().and_then(|v| v.parse().ok()).unwrap_or(0.02);
+        match wallets.with_wallet(account, |w, _, _| w.fresh_address()).await {
+            Ok(addr) => tracing::info!("testnet faucet enabled; top it up at {addr}"),
+            Err(e) => tracing::warn!("testnet faucet enabled, but its wallet isn't ready: {e:#}"),
+        }
         Ok(Some(Arc::new(Self {
-            // Refuses anything but a testnet key file.
-            signer: DeviceSigner::from_key_file(&file)?,
-            account: account.parse().context("ZEBFIN_FAUCET_ACCOUNT must be an account id")?,
+            signer,
+            account,
             zats: (taz * 1e8).round() as u64,
             last: Mutex::new(HashMap::new()),
             busy: tokio::sync::Mutex::new(()),
@@ -146,4 +161,33 @@ pub async fn drip(State(state): State<AppState>, OrgAuth(org): OrgAuth, Json(bod
             }))
         }
     }
+}
+
+/// Imports the faucet's own view-only account under its own org (no members),
+/// once. IDs are derived from the key's seed fingerprint, so restarts find it.
+async fn provision(db: &deadpool_postgres::Pool, wallets: &WalletService, signer: &DeviceSigner) -> anyhow::Result<Uuid> {
+    let export = signer.export_account()?;
+    let id = |label: &[u8]| -> Uuid {
+        let h = Sha256::new_with_prefix(label).chain_update(export.seed_fingerprint.as_bytes()).finalize();
+        Uuid::from_slice(&h[..16]).expect("16 bytes")
+    };
+    let (org, account) = (id(b"zebfin/faucet/v1/org"), id(b"zebfin/faucet/v1/account"));
+    let conn = db.get().await?;
+    if conn.query_opt("SELECT id FROM accounts WHERE id = $1", &[&account]).await?.is_some() {
+        return Ok(account);
+    }
+    let birthday = std::env::var("ZEBFIN_FAUCET_BIRTHDAY").ok().and_then(|v| v.parse().ok());
+    let (name, ufvk, fp, index) = (account.to_string(), export.ufvk.clone(), export.seed_fingerprint.clone(), export.account_index);
+    wallets
+        .with_wallet(account, move |w, rt, client| rt.block_on(w.import_account(client, &name, &ufvk, &fp, index, birthday)))
+        .await
+        .context("importing the faucet account")?;
+    conn.execute(
+        "INSERT INTO orgs (id, meta_ciphertext) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+        &[&org, &b"zebfin-faucet".to_vec()],
+    )
+    .await?;
+    conn.execute("INSERT INTO accounts (id, org_id) VALUES ($1, $2)", &[&account, &org]).await?;
+    tracing::info!("created the faucet's account {account}");
+    Ok(account)
 }

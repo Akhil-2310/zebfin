@@ -30,6 +30,35 @@ faucet wallet (no org's funds), and the signer refuses non-testnet key files.
 
 Open http://localhost:3000, create an organization with a passkey (Chrome or Safari; the passkey provider must support the WebAuthn PRF extension), save the recovery kit, then connect a treasury account using the view-only key from `zebfin signer export`.
 
+## Deploy (testnet)
+
+Three pieces: Postgres (e.g. Neon), the API server (Fly.io, needs a persistent volume and must stay running), and the
+web app (Vercel).
+
+```bash
+# 1. Postgres: create a Neon project and copy its connection string (sslmode=require).
+
+# 2. API server on Fly.io (from backend/)
+fly launch --no-deploy --copy-config          # pick a unique app name if zebfin-api is taken
+fly volumes create zebfin_data --size 1 --region bom
+fly secrets set DATABASE_URL='postgres://…?sslmode=require' \
+  ZEBFIN_CORS_ORIGIN='https://<your-site>.vercel.app' \
+  ZEBFIN_RP_ID='<your-site>.vercel.app' \
+  ZEBFIN_FAUCET_KEY_JSON="$(cat ../.dev/prod-faucet.json)"   # optional testnet faucet
+fly deploy
+fly logs                                       # shows the faucet's top-up address
+
+# 3. Web app on Vercel (from web/)
+vercel link                                    # root directory: web
+vercel env add NEXT_PUBLIC_API_URL production  # https://<app>.fly.dev
+vercel --prod
+```
+
+- `ZEBFIN_RP_ID` must be the web app's domain, or passkeys won't work. Passkeys made on localhost don't carry over.
+- The browser signer (`web/public/signer`, `web/src/wasm`) is committed; rebuild it with `web/scripts/build-signer.sh`
+  after changing the signer crates.
+- Without `ZEBFIN_FAUCET_ACCOUNT`, the faucet creates its own account on first start and logs an address to fund.
+
 ## How the web app protects data
 
 | Thing | Where it lives |

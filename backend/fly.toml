@@ -1,0 +1,30 @@
+# Fly.io config for zebfin-server. Deploy from backend/: fly deploy
+# Secrets (fly secrets set ...): DATABASE_URL, ZEBFIN_CORS_ORIGIN, ZEBFIN_RP_ID,
+# and optionally ZEBFIN_FAUCET_KEY_JSON for the testnet faucet.
+app = "zebfin-api"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ZEBFIN_SYNC_SECS = "30"
+
+# Wallet databases and in-flight payment files. Back this up with Postgres.
+[[mounts]]
+  source = "zebfin_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Must keep running: it syncs wallets and broadcasts scheduled payments.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Proving needs some memory. One machine only: wallets are local SQLite files.
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

@@ -16,6 +16,9 @@ serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+tokio-postgres-rustls = "0.13"
+rustls.workspace = true
+webpki-roots = "1"
 deadpool-postgres = "0.14"
 chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
 thiserror.workspace = true
