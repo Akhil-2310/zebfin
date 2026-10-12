@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pet } from "@/components/Pet";
+import { Logo } from "@/components/Logo";
 
 const LINKS = [
   ["/#privacy", "Privacy"],
@@ -13,9 +13,8 @@ export function SiteNav() {
   return (
     <header className="sticky top-0 z-20 border-b-[3px] border-border bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="flex items-center gap-2">
-          <Pet mood="happy" size={30} />
-          <span className="pixel text-lg font-bold tracking-wide">ZEBFIN</span>
+        <Link href="/" className="flex items-center" aria-label="Zebfin home">
+          <Logo className="h-8" />
         </Link>
         <nav className="hidden items-center gap-6 text-sm md:flex" aria-label="Page sections">
           {LINKS.map(([href, label]) => (

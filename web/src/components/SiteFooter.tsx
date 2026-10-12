@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 const COLUMNS: [string, [string, string][]][] = [
   [
@@ -26,7 +27,7 @@ export function SiteFooter() {
     <footer className="mt-20 border-t-[3px] border-border bg-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_2fr]">
         <div>
-          <p className="pixel text-lg font-bold tracking-wide">ZEBFIN</p>
+          <Logo className="h-8" />
           <p className="mt-2 max-w-xs text-sm text-muted">
             Private payroll, treasury and books for teams on Zcash. Shielded on chain, encrypted off it.
           </p>

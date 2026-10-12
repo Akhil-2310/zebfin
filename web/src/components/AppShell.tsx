@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { Logo } from "@/components/Logo";
 import { Pet } from "@/components/Pet";
 import { useAppData } from "@/lib/app-data";
 import { MOOD_LABEL } from "@/lib/pet";
@@ -46,8 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 border-b-[3px] border-border bg-surface print:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <Link href="/app" className="pixel text-lg font-bold tracking-wide">
-              ZEBFIN
+            <Link href="/app" className="flex shrink-0 items-center" aria-label="Zebfin home">
+              <Logo className="h-7" />
             </Link>
             <span className="chip hidden max-w-48 truncate sm:inline-flex">{session.orgName}</span>
             <span className="chip chip-sun">testnet</span>
