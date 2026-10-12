@@ -39,6 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-src/wasm/
-public/signer/
+# The browser signer is committed so hosts without the Wasm toolchain can
+# build the site; regenerate with scripts/build-signer.sh.
 scripts/.signer-node/
