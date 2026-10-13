@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, post, put, type MembersResponse, type Policy, type PolicyView } from "@/lib/api";
-import { PRESETS, presetOf, type Preset } from "@/lib/policy-presets";
+import { ADAPTIVE_SOLO_LIMIT_USD, adaptiveApprovals, PRESETS, presetOf, type Preset } from "@/lib/policy-presets";
 import type { MemberLabel, Stored } from "@/lib/records";
 import type { Session } from "@/lib/session";
 
@@ -45,7 +45,7 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
     setError(null);
     try {
       // Keep any caps and holds already set; presets only change who approves.
-      await propose({ ...p, tiers: PRESETS[k].policy.tiers });
+      await propose({ ...p, adaptive: PRESETS[k].policy.adaptive, tiers: PRESETS[k].policy.tiers });
       setVersion((v) => v + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -77,8 +77,10 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
   const d = draft;
   const current = presetOf(p);
   // Small payments need the lowest tier's approvals; flag when even those can't be met.
-  const fewest = Math.min(...p.tiers.map((t) => t.approvals));
+  // Adaptive approvals never ask for more people than the team has.
+  const fewest = p.adaptive ? 1 : Math.min(...p.tiers.map((t) => t.approvals));
   const stuck = approvers < fewest;
+  const limit = `$${ADAPTIVE_SOLO_LIMIT_USD.toLocaleString()}`;
   return (
     <section className="card">
       <h2 className="text-lg font-semibold">Spending policy</h2>
@@ -106,12 +108,33 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
       )}
       {!d ? (
         <ul className="mt-3 space-y-1 text-sm">
-          {p.tiers.map((t, i) => (
-            <li key={i}>
-              {t.above_usd === 0 ? "Any payment" : `Above $${t.above_usd.toLocaleString()}`}: {t.approvals} approval
-              {t.approvals === 1 ? "" : "s"}
-            </li>
-          ))}
+          {p.adaptive ? (
+            <>
+              <li>
+                <b>Adapts to your team</b> ({approvers} approver{approvers === 1 ? "" : "s"} now):
+              </li>
+              {approvers <= 1 && <li>· Any payment: 1 approval (just you)</li>}
+              {approvers === 2 && (
+                <>
+                  <li>· Under {limit}: 1 approval (either of you)</li>
+                  <li>· {limit} and above: 2 approvals (both of you)</li>
+                </>
+              )}
+              {approvers >= 3 && (
+                <li>
+                  · Any payment: {adaptiveApprovals(approvers, 0)} approvals (a majority of {approvers})
+                </li>
+              )}
+              <li className="text-xs text-muted">Updates automatically when someone joins or leaves.</li>
+            </>
+          ) : (
+            p.tiers.map((t, i) => (
+              <li key={i}>
+                {t.above_usd === 0 ? "Any payment" : `Above $${t.above_usd.toLocaleString()}`}: {t.approvals} approval
+                {t.approvals === 1 ? "" : "s"}
+              </li>
+            ))
+          )}
           <li>Daily cap per account: {p.daily_cap_usd ? `$${p.daily_cap_usd.toLocaleString()}` : "none"}</li>
           <li>Monthly cap per account: {p.monthly_cap_usd ? `$${p.monthly_cap_usd.toLocaleString()}` : "none"}</li>
           <li>
@@ -121,7 +144,17 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
         </ul>
       ) : (
         <div className="mt-3 space-y-2 text-sm">
-          {d.tiers.map((t, i) => (
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={!!d.adaptive} onChange={(e) => setDraft({ ...d, adaptive: e.target.checked })} />
+            <span>
+              <b>Adapt approvals to team size.</b>{" "}
+              <span className="text-muted">
+                With two approvers, either approves under {limit} and both above; with three or more, a majority. Turn off to use
+                the fixed tiers below.
+              </span>
+            </span>
+          </label>
+          {!d.adaptive && d.tiers.map((t, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="w-20 text-muted">Above $</span>
               <input
@@ -142,9 +175,11 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
               )}
             </div>
           ))}
-          <button className="text-xs text-accent-ink" onClick={() => setDraft({ ...d, tiers: [...d.tiers, { above_usd: 0, approvals: 2 }] })}>
-            + Add tier
-          </button>
+          {!d.adaptive && (
+            <button className="text-xs text-accent-ink" onClick={() => setDraft({ ...d, tiers: [...d.tiers, { above_usd: 0, approvals: 2 }] })}>
+              + Add tier
+            </button>
+          )}
           {(
             [
               ["daily_cap_usd", "Daily cap $ (blank = none)"],
@@ -192,7 +227,7 @@ export function PolicyPanel({ session, memberLabels }: { session: Session; membe
             second admin.
           </p>
           <p className="mt-1 text-xs text-muted">
-            Tiers: {view.pending.tiers.map((t) => `>$${t.above_usd}→${t.approvals}`).join(", ")} · daily{" "}
+            {view.pending.adaptive ? "Adaptive approvals" : `Tiers: ${view.pending.tiers.map((t) => `>$${t.above_usd}→${t.approvals}`).join(", ")}`} · daily{" "}
             {view.pending.daily_cap_usd ?? "none"} · monthly {view.pending.monthly_cap_usd ?? "none"} · hold ${view.pending.new_payee_hold_above_usd}/
             {view.pending.new_payee_hold_hours}h
           </p>

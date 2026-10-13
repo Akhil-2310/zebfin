@@ -138,6 +138,8 @@ export interface Payment {
 }
 
 export interface Policy {
+  /** Approvals follow the number of approvers instead of `tiers` (see policy-presets.ts). */
+  adaptive?: boolean;
   tiers: { above_usd: number; approvals: number }[];
   daily_cap_usd: number | null;
   monthly_cap_usd: number | null;

@@ -64,7 +64,8 @@ pub async fn list(State(state): State<AppState>, auth: MemberAuth) -> ApiResult<
         )
         .await?;
     // The smallest number of approvals any payment needs under the current policy.
-    let threshold = super::policy::load_policy(&state, auth.org).await?.required_approvals(Some(0.0));
+    let approvers = super::policy::approver_count(&state, auth.org).await?;
+    let threshold = super::policy::load_policy(&state, auth.org).await?.required_approvals(Some(0.0), approvers);
     Ok(Json(Members {
         members: rows
             .iter()

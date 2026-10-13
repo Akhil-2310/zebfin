@@ -24,9 +24,18 @@ pub struct Tier {
     pub approvals: i32,
 }
 
+/// Under adaptive approvals, two approvers each approve payments below this
+/// alone; at or above it, both must approve.
+pub const ADAPTIVE_SOLO_LIMIT_USD: f64 = 1_000.0;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Policy {
-    /// Approval tiers by total USD value, lowest first.
+    /// Approvals follow the number of approvers instead of `tiers`: 1 alone;
+    /// with 2, one below ADAPTIVE_SOLO_LIMIT_USD and both above; with 3 or
+    /// more, a majority. Policies saved before this field existed are fixed.
+    #[serde(default)]
+    pub adaptive: bool,
+    /// Approval tiers by total USD value, lowest first (when not adaptive).
     pub tiers: Vec<Tier>,
     /// Per-account caps on USD sent, counting payments that are approved or later.
     pub daily_cap_usd: Option<f64>,
@@ -40,6 +49,7 @@ pub struct Policy {
 impl Default for Policy {
     fn default() -> Self {
         Self {
+            adaptive: true,
             tiers: vec![
                 Tier { above_usd: 0.0, approvals: 2 },
                 Tier { above_usd: 10_000.0, approvals: 3 },
@@ -54,8 +64,18 @@ impl Default for Policy {
 
 impl Policy {
     /// Approvals needed for a payment of `usd` (None = no rate available, so
-    /// the strictest tier applies).
-    pub fn required_approvals(&self, usd: Option<f64>) -> i32 {
+    /// the strictest rule applies) in an org with `approvers` admins and approvers.
+    pub fn required_approvals(&self, usd: Option<f64>, approvers: i64) -> i32 {
+        if self.adaptive {
+            return match approvers {
+                ..=1 => 1,
+                2 => match usd {
+                    Some(v) if v < ADAPTIVE_SOLO_LIMIT_USD => 1,
+                    _ => 2,
+                },
+                n => (n / 2 + 1) as i32,
+            };
+        }
         let strictest = self.tiers.iter().map(|t| t.approvals).max().unwrap_or(1);
         match usd {
             None => strictest,
@@ -90,6 +110,20 @@ impl Policy {
 /// How the server identifies a payee without storing the address.
 pub fn payee_hash(address: &str) -> Vec<u8> {
     Sha256::new_with_prefix(b"zebfin/payee/v1|").chain_update(address.trim().as_bytes()).finalize().to_vec()
+}
+
+/// Members who can approve payments (admins and approvers).
+pub async fn approver_count(state: &AppState, org: Uuid) -> ApiResult<i64> {
+    Ok(state
+        .db
+        .get()
+        .await?
+        .query_one(
+            "SELECT count(*) FROM members WHERE org_id = $1 AND role IN ('admin', 'approver')",
+            &[&org],
+        )
+        .await?
+        .get(0))
 }
 
 pub async fn load_policy(state: &AppState, org: Uuid) -> ApiResult<Policy> {
@@ -273,6 +307,7 @@ mod tests {
     #[test]
     fn tiers_pick_the_strictest_matching_rule() {
         let p = Policy {
+            adaptive: false,
             tiers: vec![
                 Tier { above_usd: 0.0, approvals: 1 },
                 Tier { above_usd: 1_000.0, approvals: 2 },
@@ -280,16 +315,37 @@ mod tests {
             ],
             ..Policy::default()
         };
-        assert_eq!(p.required_approvals(Some(5.0)), 1);
-        assert_eq!(p.required_approvals(Some(1_000.0)), 1);
-        assert_eq!(p.required_approvals(Some(1_000.01)), 2);
-        assert_eq!(p.required_approvals(Some(25_000.0)), 3);
-        assert_eq!(p.required_approvals(None), 3, "no rate means strictest");
+        assert_eq!(p.required_approvals(Some(5.0), 5), 1);
+        assert_eq!(p.required_approvals(Some(1_000.0), 5), 1);
+        assert_eq!(p.required_approvals(Some(1_000.01), 5), 2);
+        assert_eq!(p.required_approvals(Some(25_000.0), 5), 3);
+        assert_eq!(p.required_approvals(None, 5), 3, "no rate means strictest");
     }
 
     #[test]
-    fn default_keeps_two_person_rule() {
-        assert_eq!(Policy::default().required_approvals(Some(1.0)), 2);
+    fn adaptive_follows_team_size() {
+        let p = Policy::default();
+        assert!(p.adaptive);
+        // One person: they approve alone.
+        assert_eq!(p.required_approvals(Some(50_000.0), 1), 1);
+        // Two people: either alone below $1,000, both at or above it.
+        assert_eq!(p.required_approvals(Some(999.99), 2), 1);
+        assert_eq!(p.required_approvals(Some(1_000.0), 2), 2);
+        assert_eq!(p.required_approvals(None, 2), 2, "no rate means strictest");
+        // Three or more: a majority, whatever the amount.
+        assert_eq!(p.required_approvals(Some(5.0), 3), 2);
+        assert_eq!(p.required_approvals(Some(5.0), 4), 3);
+        assert_eq!(p.required_approvals(Some(5.0), 5), 3);
+    }
+
+    #[test]
+    fn saved_policies_without_the_flag_stay_fixed() {
+        let p: Policy = serde_json::from_str(
+            r#"{"tiers":[{"above_usd":0,"approvals":2}],"daily_cap_usd":null,"monthly_cap_usd":null,"new_payee_hold_above_usd":500,"new_payee_hold_hours":24}"#,
+        )
+        .unwrap();
+        assert!(!p.adaptive);
+        assert_eq!(p.required_approvals(Some(1.0), 2), 2);
     }
 
     #[test]

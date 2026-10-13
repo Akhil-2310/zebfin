@@ -32,7 +32,7 @@ use super::{
     accounts::owned_account,
     members::role_of,
     passkeys::{Pending, StartResponse, member_passkeys, record_use},
-    policy::{load_policy, payee_added_at},
+    policy::{approver_count, load_policy, payee_added_at},
 };
 use crate::{
     AppState,
@@ -256,7 +256,8 @@ async fn approvals_for(
         )
         .await?;
     let policy = load_policy(state, org).await?;
-    let required = policy.required_approvals(request.and_then(|r| r.usd_value));
+    let approvers = approver_count(state, org).await?;
+    let required = policy.required_approvals(request.and_then(|r| r.usd_value), approvers);
     Ok((
         rows.iter()
             .map(|r| Approval { member_id: r.get(0), created_at: r.get(1) })
