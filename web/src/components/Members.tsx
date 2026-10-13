@@ -79,10 +79,6 @@ export function Members({ session, labels }: { session: Session; labels: Stored<
               Only {approvers} member{approvers !== 1 && "s"} can approve. Invite an approver so payroll can go out.
             </p>
           )}
-          <p className="mt-2 text-xs text-muted">
-            Enforced by our server until threshold signing (FROST) lands, at which point no single party can move
-            funds alone.
-          </p>
         </div>
       )}
 
