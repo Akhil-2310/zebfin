@@ -242,7 +242,12 @@ export function PaymentCard({
               {busy ? "Signing…" : "Sign and send with passkey"}
             </button>
           )}
-          {canSign === false && <p className="text-muted">This passkey has no signing key for the account. Use the CLI below.</p>}
+          {canSign === false && (
+            <p className="text-muted">
+              This passkey can&apos;t sign for this account yet. Add the account&apos;s seed under <b>Treasury → Add signing key</b>,
+              sign in with the passkey that created the account, or use the command-line signer below.
+            </p>
+          )}
           <details open={canSign === false}>
             <summary className="cursor-pointer text-muted">Sign with an external device (CLI)</summary>
             <div className="mt-2 flex flex-wrap items-center gap-2">

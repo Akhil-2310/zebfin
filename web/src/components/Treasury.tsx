@@ -282,7 +282,7 @@ function AccountView({
   labels: Stored<AccountLabel>[];
   onChanged: () => void;
 }) {
-  const [hasKey, setHasKey] = useState(false);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
     hasSigningKey(session, accountId).then((h) => !cancelled && setHasKey(h), () => {});
@@ -466,6 +466,14 @@ function AccountView({
           </ul>
         )}
       </div>
+      {hasKey === false && (
+        <AddSigningKey
+          session={session}
+          accountId={accountId}
+          label={labels.find((l) => l.value.accountId === accountId)?.value}
+          onAdded={() => setHasKey(true)}
+        />
+      )}
       {hasKey && (
         <details>
           <summary className="cursor-pointer text-sm text-muted">Separate account for a purpose (payroll, reserves…)</summary>
@@ -473,6 +481,74 @@ function AccountView({
         </details>
       )}
       {error && <p className="text-sm text-danger">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Lets this passkey sign for an account it has no key for (another browser or
+ * passkey created it, or this is a second approver). The pasted seed must
+ * belong to this exact account before it's stored, wrapped under the passkey.
+ */
+function AddSigningKey({
+  session,
+  accountId,
+  label,
+  onAdded,
+}: {
+  session: Session;
+  accountId: string;
+  label: AccountLabel | undefined;
+  onAdded: () => void;
+}) {
+  const [phrase, setPhrase] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function add() {
+    setBusy(true);
+    setError(null);
+    try {
+      const mnemonic = phrase.trim().toLowerCase().split(/\s+/).join(" ");
+      const accountIndex = label?.accountIndex ?? 0;
+      const exp = await exportAccount(mnemonic, accountIndex);
+      let matches: boolean | null = label?.seedFingerprint ? exp.seed_fingerprint === label.seedFingerprint : null;
+      if (matches === null) {
+        // No fingerprint on record: compare with the account's viewing key (admins).
+        const vk = await api<{ ufvk: string }>(`/v1/accounts/${accountId}/viewing-key`, { token: session.token }).catch(() => null);
+        matches = vk ? vk.ufvk === exp.ufvk : null;
+      }
+      if (matches === false) throw new Error("That seed phrase belongs to a different account.");
+      if (matches === null) throw new Error("Couldn't confirm the seed belongs to this account. Ask an admin to add it.");
+      await storeSigningKey(session, accountId, { mnemonic, accountIndex });
+      setPhrase("");
+      onAdded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="well space-y-2 p-3 text-sm">
+      <p>
+        <b>🔑 This passkey can&apos;t sign payments from this account yet.</b> The account&apos;s key was created with
+        another passkey or browser. Paste its 24-word seed phrase to sign from here too; it&apos;s checked against this
+        account, then stored locked to your passkey.
+      </p>
+      <textarea
+        className="input mono h-20"
+        value={phrase}
+        onChange={(e) => setPhrase(e.target.value)}
+        placeholder="24 words"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <button className="btn px-3 py-1 text-xs" disabled={busy || phrase.trim().split(/\s+/).length < 12} onClick={add}>
+        {busy ? "Waiting for passkey…" : "Add signing key"}
+      </button>
+      {error && <p className="text-danger">{error}</p>}
     </div>
   );
 }
