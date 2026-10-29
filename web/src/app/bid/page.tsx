@@ -156,22 +156,33 @@ export default function BidPage() {
       ) : (
         <section className="card mt-5 text-sm">
           <h2 className="font-semibold">{p === "revealing" ? "Reveal your bid" : "Reveals are closed"}</h2>
-          {p === "revealing" &&
-            (receipt ? (
-              <BondStep receipt={receipt} qr={qr} uri={uri!} pay={pay!} onDownload={downloadReceipt} label={`Send the reveal (${formatTaz(REVEAL_ZATS)} TAZ)`} />
-            ) : (
-              <label className="mt-2 block">
-                <span className="label">Load your saved bid file</span>
-                <input
-                  type="file"
-                  accept="application/json"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (f) setReceipt(JSON.parse(await f.text()));
-                  }}
-                />
-              </label>
-            ))}
+          {p === "revealing" && receipt && (
+            <BondStep receipt={receipt} qr={qr} uri={uri!} pay={pay!} onDownload={downloadReceipt} label={`Send the reveal (${formatTaz(REVEAL_ZATS)} TAZ)`} />
+          )}
+          {p === "revealing" && (
+            <label className="mt-3 block">
+              <span className="label">{receipt ? "Revealing a different bid? Load its bid file" : "Load your saved bid file (bid-….json)"}</span>
+              <span className="btn-ghost mt-1 inline-block cursor-pointer px-3 py-1 text-xs">Choose bid file</span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    const r = JSON.parse(await f.text()) as BidReceipt;
+                    if (r.auctionId !== rules.auctionId) return setError("That bid file is for a different auction.");
+                    setError(null);
+                    setReceipt(r);
+                    localStorage.setItem(storeKey(rules.auctionId), JSON.stringify(r));
+                  } catch {
+                    setError("That isn't a Zebfin bid file.");
+                  }
+                }}
+              />
+            </label>
+          )}
           {p === "closable" && <p className="mt-2 text-muted">Waiting for the organizer to close the auction.</p>}
         </section>
       )}
