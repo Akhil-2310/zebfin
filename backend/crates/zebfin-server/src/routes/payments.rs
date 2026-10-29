@@ -649,33 +649,54 @@ async fn broadcast(state: &AppState, id: Uuid, account_id: Uuid) {
     }
 }
 
-/// Broadcasts scheduled payments when their random moment arrives.
+/// Broadcasts scheduled payments when their random moment arrives. Sleeps
+/// until the next one is due (or a new one is scheduled) instead of polling,
+/// so an idle server leaves the database alone.
 pub async fn broadcast_loop(state: AppState) {
-    let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
     loop {
-        tick.tick().await;
-        let due = async {
+        let next = async {
+            let db = state.db.get().await?;
             // Claim due payments atomically so each is sent once.
-            let rows = state
-                .db
-                .get()
-                .await?
+            let rows = db
                 .query(
                     "UPDATE payments SET status = $1, updated_at = now()
                      WHERE status = $2 AND broadcast_at <= now() RETURNING id, account_id",
                     &[&SENDING, &SCHEDULED],
                 )
                 .await?;
-            Ok::<_, ApiError>(rows.iter().map(|r| (r.get(0), r.get(1))).collect::<Vec<(Uuid, Uuid)>>())
+            let due: Vec<(Uuid, Uuid)> = rows.iter().map(|r| (r.get(0), r.get(1))).collect();
+            let wait: Option<f64> = db
+                .query_one(
+                    "SELECT EXTRACT(EPOCH FROM min(broadcast_at) - now())::float8 FROM payments WHERE status = $1",
+                    &[&SCHEDULED],
+                )
+                .await?
+                .get(0);
+            Ok::<_, ApiError>((due, wait))
         }
         .await;
-        match due {
-            Ok(due) => {
+        let wait = match next {
+            Ok((due, wait)) => {
                 for (id, account_id) in due {
                     broadcast(&state, id, account_id).await;
                 }
+                wait
             }
-            Err(e) => tracing::warn!("broadcast loop: {e}"),
+            Err(e) => {
+                tracing::warn!("broadcast loop: {e}");
+                Some(5.0)
+            }
+        };
+        let notified = state.scheduled.notified();
+        match wait {
+            Some(secs) => {
+                let secs = secs.clamp(0.5, MAX_JITTER_SECS as f64);
+                tokio::select! {
+                    _ = tokio::time::sleep(std::time::Duration::from_secs_f64(secs)) => {}
+                    _ = notified => {}
+                }
+            }
+            None => notified.await,
         }
     }
 }
@@ -755,6 +776,7 @@ pub async fn submit_signature(
         if n != 1 {
             return Err(ApiError::Conflict("payment changed state; try again".into()));
         }
+        state.scheduled.notify_one();
     }
     let row = load(&state, org, id).await?;
     Ok(Json(render(&state, org, row, false).await?))

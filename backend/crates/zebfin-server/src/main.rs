@@ -25,7 +25,6 @@ use axum::{
 };
 use serde_json::json;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use uuid::Uuid;
 
 use routes::{accounts, faucet, members, orgs, passkeys, payments, policy, portals, rates, records};
 use wallets::WalletService;
@@ -38,6 +37,8 @@ pub struct AppState {
     pub rates: rates::Rates,
     /// Testnet faucet, when configured (ZEBFIN_FAUCET_KEY + ZEBFIN_FAUCET_ACCOUNT).
     pub faucet: Option<std::sync::Arc<routes::faucet::Faucet>>,
+    /// Wakes the broadcast loop when a payment is scheduled.
+    pub scheduled: std::sync::Arc<tokio::sync::Notify>,
 }
 
 fn env_or(key: &str, default: &str) -> String {
@@ -176,19 +177,10 @@ async fn sync_loop(state: AppState, every: Duration) {
     let mut tick = tokio::time::interval(every);
     loop {
         tick.tick().await;
-        let ids: Vec<Uuid> = match async {
-            let rows = state.db.get().await?.query("SELECT id FROM accounts", &[]).await?;
-            Ok::<_, anyhow::Error>(rows.iter().map(|r| r.get(0)).collect())
-        }
-        .await
-        {
-            Ok(ids) => ids,
-            Err(e) => {
-                tracing::warn!("sync loop: {e:#}");
-                continue;
-            }
-        };
-        for id in ids {
+        // Close pooled connections idle for over a minute, so a serverless
+        // Postgres (Neon) can scale to zero between requests.
+        state.db.retain(|_, m| m.last_used() < Duration::from_secs(60));
+        for id in state.wallets.account_ids().await {
             let r = state
                 .wallets
                 .with_wallet(id, |w, rt, client| rt.block_on(w.sync(client)))
@@ -243,6 +235,7 @@ async fn main() -> anyhow::Result<()> {
         passkeys: passkeys::Passkeys::new(&rp_id, &cors_origin)?,
         rates: rates::Rates::default(),
         faucet,
+        scheduled: Default::default(),
     };
     tokio::spawn(rates::refresh_loop(state.rates.clone()));
 

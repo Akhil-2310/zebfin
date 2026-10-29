@@ -50,6 +50,20 @@ impl WalletService {
         self.client.clone()
     }
 
+    /// Accounts with a wallet on disk. Read from the data directory, not the
+    /// app database, so background syncing never wakes the database.
+    pub async fn account_ids(&self) -> Vec<Uuid> {
+        let mut ids = vec![];
+        if let Ok(mut dir) = tokio::fs::read_dir(self.data_dir.join("wallets")).await {
+            while let Ok(Some(entry)) = dir.next_entry().await {
+                if let Some(id) = entry.file_name().to_str().and_then(|n| n.parse().ok()) {
+                    ids.push(id);
+                }
+            }
+        }
+        ids
+    }
+
     fn account_dir(&self, account_id: Uuid) -> PathBuf {
         self.data_dir.join("wallets").join(account_id.to_string())
     }
